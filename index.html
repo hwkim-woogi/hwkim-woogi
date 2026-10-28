@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitTrack 주중 체중 리포트 (월~금 아침·점심)</title>
+    <title>FitTrack 주중 체중 리포트 (월~금 아침·점심 · GitHub 연동)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -26,7 +26,6 @@
         .card-shadow {
             box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
         }
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -54,25 +53,26 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <h1 class="text-lg font-bold tracking-tight text-slate-900">주중 아침·점심 체중 매니저</h1>
                             <div class="inline-flex items-center rounded-full shadow-xs">
-                                <button onclick="triggerManualCloudSync()" id="manualSyncBadgeBtn" title="클릭하여 지금 클라우드와 수동 동기화" class="text-[11px] font-bold px-3 py-1 rounded-l-full bg-amber-50 hover:bg-amber-100 text-amber-800 flex items-center gap-1.5 border border-amber-300 transition-all cursor-pointer active:scale-95">
-                                    <i data-lucide="refresh-cw" id="manualSyncIcon" class="w-3.5 h-3.5 text-amber-600"></i>
-                                    <span id="manualSyncBadgeText">수동 동기화 대기 (클릭하여 동기화)</span>
+                                <button onclick="handleManualBadgeClick()" id="manualSyncBadgeBtn" title="클릭하여 GitHub 저장소에 수동 커밋 및 동기화" class="text-[11px] font-bold px-3 py-1 rounded-l-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 border border-slate-300 transition-all cursor-pointer active:scale-95">
+                                    <i data-lucide="github" id="manualSyncIcon" class="w-3.5 h-3.5 text-slate-700"></i>
+                                    <span id="manualSyncBadgeText">GitHub 미연결 · 클릭하여 저장소 설정</span>
                                 </button>
-                                <button onclick="openCloudSyncModal()" title="동기화 옵션 및 기기 연동 코드 설정" class="px-2 py-1 rounded-r-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-l-0 border-slate-300 text-[11px] font-semibold flex items-center transition-all">
-                                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+                                <button onclick="openGitHubSyncModal()" title="GitHub 저장소 및 Personal Access Token 설정" class="px-2.5 py-1 rounded-r-full bg-slate-800 hover:bg-slate-900 text-white border border-l-0 border-slate-800 text-[11px] font-semibold flex items-center gap-1 transition-all">
+                                    <i data-lucide="settings" class="w-3 h-3"></i>
+                                    <span class="hidden sm:inline">설정</span>
                                 </button>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-500">월~금 아침/점심 체중 기록 · 배지 클릭 시 클라우드 수동 동기화 · 금요일 15:00 리포트</p>
+                        <p class="text-xs text-slate-500">월~금 아침/점심 체중 기록 · 배지 클릭 시 GitHub 저장소(`data/weight-records.json`) 수동 커밋 · 금요일 15:00 리포트</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Real-time Clock, Cloud Sync Modal Trigger & Simulation Switcher -->
+            <!-- Real-time Clock, GitHub Sync Modal Trigger & Simulation Switcher -->
             <div class="flex flex-wrap items-center gap-2">
-                <button onclick="openCloudSyncModal()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm">
-                    <i data-lucide="cloud-cog" class="w-3.5 h-3.5"></i>
-                    <span id="syncProfileLabel">수동 동기화 설정</span>
+                <button onclick="openGitHubSyncModal()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm">
+                    <i data-lucide="git-branch" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span id="syncProfileLabel">GitHub 저장소 설정</span>
                 </button>
 
                 <div class="flex flex-wrap items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200/80">
@@ -97,101 +97,169 @@
         </div>
     </header>
 
-    <!-- Cloud Sync & Multi-Device Profile Modal -->
-    <div id="cloudSyncModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+    <!-- GitHub Repository Storage & Manual Sync Modal -->
+    <div id="githubSyncModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 my-8 max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                        <i data-lucide="cloud-cog" class="w-5 h-5"></i>
+                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                        <i data-lucide="github" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-slate-900">수동 클라우드 동기화 및 기기 연동</h3>
-                        <p class="text-xs text-slate-500">원할 때만 직접 클라우드에 올리거나 최신 기록을 가져옵니다</p>
+                        <h3 class="text-base font-bold text-slate-900">GitHub 저장소 내부 데이터 연동 설정</h3>
+                        <p class="text-xs text-slate-500">체중 데이터를 내 GitHub 레포지토리의 JSON 파일로 직접 커밋·보관합니다</p>
                     </div>
                 </div>
-                <button onclick="closeCloudSyncModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+                <button onclick="closeGitHubSyncModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
             <div class="space-y-4 text-xs">
-                <!-- Manual Sync Action Buttons inside Modal -->
-                <div class="p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200 space-y-2.5">
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold text-indigo-950">수동 동기화 실행 제어</span>
-                        <span id="modalPendingBadge" class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[11px]">대기 중</span>
+                <!-- Manual GitHub Sync Action Panel -->
+                <div class="p-4 rounded-2xl bg-slate-900 text-white space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-sm text-white flex items-center gap-1.5">
+                                <i data-lucide="git-commit-horizontal" class="w-4 h-4 text-emerald-400"></i>
+                                수동 GitHub 커밋 & 동기화 제어
+                            </span>
+                        </div>
+                        <span id="modalPendingBadge" class="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-bold text-[11px]">
+                            설정 대기 중
+                        </span>
                     </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <button onclick="triggerManualCloudSync()" class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all">
+                        <button onclick="triggerManualGitHubSync('merge')" class="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition-all">
                             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                            <span>양방향 동기화</span>
+                            <span>양방향 병합 동기화</span>
                         </button>
-                        <button onclick="manualPushAllToCloud()" class="py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold flex items-center justify-center gap-1.5 transition-all">
-                            <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-indigo-600"></i>
-                            <span>전체 업로드</span>
+                        <button onclick="triggerManualGitHubSync('push')" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 font-bold flex items-center justify-center gap-1.5 transition-all">
+                            <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-sky-300"></i>
+                            <span>GitHub에 덮어쓰기</span>
                         </button>
-                        <button onclick="manualPullFromCloud()" class="py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold flex items-center justify-center gap-1.5 transition-all">
-                            <i data-lucide="cloud-download" class="w-3.5 h-3.5 text-emerald-600"></i>
-                            <span>클라우드 불러오기</span>
+                        <button onclick="triggerManualGitHubSync('pull')" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 font-bold flex items-center justify-center gap-1.5 transition-all">
+                            <i data-lucide="cloud-download" class="w-3.5 h-3.5 text-amber-300"></i>
+                            <span>GitHub에서 불러오기</span>
                         </button>
                     </div>
-                    <p class="text-[11px] text-indigo-800" id="modalLastSyncedText">상단 배지를 클릭하거나 위 버튼을 눌러 수동으로 동기화할 수 있습니다.</p>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1 border-t border-white/10 text-[11px] text-slate-300">
+                        <span id="modalLastSyncedText">마지막 커밋 시각: 기록 없음</span>
+                        <a id="githubFileDirectLink" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-emerald-300 hover:underline font-semibold inline-flex items-center gap-1">
+                            <span>저장소 JSON 파일 열기</span>
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </a>
+                    </div>
                 </div>
 
-                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <!-- GitHub Repository Configuration Form -->
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="font-bold text-slate-700">현재 인증된 클라우드 UID</span>
-                        <span id="modalAuthBadge" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">인증 완료</span>
+                        <span class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                            <i data-lucide="folder-git-2" class="w-4 h-4 text-indigo-600"></i>
+                            대상 GitHub 저장소 (Repository) 정보
+                        </span>
+                        <span class="text-[11px] text-slate-500">브라우저 로컬에 안전하게 보관됨</span>
                     </div>
-                    <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-600 break-all">
-                        <span id="modalUserIdText">연결 대기 중...</span>
-                        <button onclick="copyUserId()" class="shrink-0 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans font-semibold">복사</button>
-                    </div>
-                </div>
 
-                <div class="space-y-2">
-                    <label class="block font-bold text-slate-800">저장 모드 선택</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="switchStorageScope('private')" id="scopeBtn-private" class="p-3 rounded-xl border text-left transition-all border-indigo-600 bg-indigo-50/60">
-                            <div class="font-bold text-slate-900 flex items-center justify-between">
-                                <span>개인 전용 보관함</span>
-                                <i data-lucide="lock" class="w-3.5 h-3.5 text-indigo-600"></i>
-                            </div>
-                            <p class="text-[11px] text-slate-500 mt-1">현재 브라우저 계정에 안전하게 자동 저장</p>
-                        </button>
-                        <button onclick="switchStorageScope('shared')" id="scopeBtn-shared" class="p-3 rounded-xl border text-left transition-all border-slate-200 hover:bg-slate-50">
-                            <div class="font-bold text-slate-900 flex items-center justify-between">
-                                <span>기기 간 동기화 코드</span>
-                                <i data-lucide="smartphone" class="w-3.5 h-3.5 text-indigo-600"></i>
-                            </div>
-                            <p class="text-[11px] text-slate-500 mt-1">스마트폰·PC에서 같은 코드로 실시간 연동</p>
-                        </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">GitHub 아이디 (Owner)</label>
+                            <input type="text" id="ghOwnerInput" placeholder="예: gildong-hong" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">저장소 이름 (Repo)</label>
+                            <input type="text" id="ghRepoInput" placeholder="예: weight-tracker" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
                     </div>
-                </div>
 
-                <div id="sharedPinConfigBox" class="hidden p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-100 space-y-2">
-                    <label class="block font-bold text-indigo-950">나만의 동기화 코드 (영문/숫자 조합)</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="syncPinInput" placeholder="예: myfit-2026" class="flex-1 px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <button onclick="applySharedSyncPin()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all">연동 적용</button>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">브랜치 (Branch)</label>
+                            <input type="text" id="ghBranchInput" placeholder="main" value="main" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold text-slate-700 mb-1">저장할 데이터 파일 경로 (JSON)</label>
+                            <input type="text" id="ghPathInput" placeholder="data/weight-records.json" value="data/weight-records.json" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
                     </div>
-                    <p class="text-[11px] text-indigo-800">스마트폰과 PC에서 동일한 동기화 코드를 입력하면 아침·점심 체중 기록이 즉시 동기화됩니다.</p>
-                </div>
 
-                <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between">
                     <div>
-                        <div class="font-bold text-emerald-950">클라우드 저장 데이터 현황</div>
-                        <div class="text-[11px] text-emerald-700 mt-0.5" id="modalSyncStatsText">총 0건의 주중 기록이 클라우드에 보관 중입니다.</div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="font-semibold text-slate-700">GitHub Personal Access Token (PAT)</label>
+                            <button type="button" onclick="toggleTokenVisibility()" class="text-[11px] text-indigo-600 hover:underline font-semibold" id="toggleTokenBtn">토큰 보기</button>
+                        </div>
+                        <input type="password" id="ghTokenInput" placeholder="github_pat_... 또는 ghp_..." class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[11px] text-slate-500 mt-1">
+                            * 토큰은 GitHub API 호출 시에만 사용되며, 저장소 코드(`index.html`)에는 절대 포함되지 않고 현재 기기 브라우저(`localStorage`)에만 저장됩니다.
+                        </p>
                     </div>
-                    <button onclick="resetAndLoadSampleData()" class="px-3 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-800 font-bold hover:bg-emerald-100 transition-all">
-                        샘플 1개월치 업로드
-                    </button>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <button onclick="clearGitHubConfig()" class="px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-semibold transition-all">
+                            연동 정보 초기화
+                        </button>
+                        <button onclick="saveGitHubConfigAndTest()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs transition-all flex items-center gap-1.5">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                            <span>설정 저장 및 연결 확인</span>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Local JSON File Export / Import Backup -->
+                <div class="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <div class="font-bold text-emerald-950">JSON 데이터 파일 직접 백업 / 복원</div>
+                        <div class="text-[11px] text-emerald-800 mt-0.5" id="modalSyncStatsText">현재 총 0건의 주중 기록 보관 중</div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="downloadJsonBackup()" class="px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-900 font-bold hover:bg-emerald-100 transition-all flex items-center gap-1">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>JSON 다운로드</span>
+                        </button>
+                        <label class="px-3 py-1.5 rounded-xl bg-emerald-700 text-white font-bold hover:bg-emerald-800 transition-all flex items-center gap-1 cursor-pointer">
+                            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                            <span>JSON 파일 열기</span>
+                            <input type="file" accept=".json" onchange="uploadJsonBackup(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Step-by-step GitHub Pages & Token Setup Guide -->
+                <details class="group rounded-2xl border border-slate-200 bg-white p-3.5">
+                    <summary class="font-bold text-slate-800 cursor-pointer flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="help-circle" class="w-4 h-4 text-indigo-600"></i>
+                            GitHub 개인 웹페이지(Pages) 개설 및 토큰(PAT) 발급 1분 가이드
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 pt-3 border-t border-slate-100 space-y-2.5 text-[11px] text-slate-600 leading-relaxed">
+                        <div>
+                            <strong class="text-slate-900">1단계: GitHub 저장소 생성 및 웹페이지 게시</strong>
+                            <p>GitHub에서 새 Repository(예: <code>weight-tracker</code>)를 만들고, 이 코드가 담긴 <code>index.html</code> 파일을 업로드합니다. 저장소의 <strong>Settings → Pages → Branch를 <code>main</code>으로 선택 후 Save</strong>하면 나만의 웹사이트 주소(<code>https://아이디.github.io/weight-tracker</code>)가 생성됩니다.</p>
+                        </div>
+                        <div>
+                            <strong class="text-slate-900">2단계: 데이터 저장용 토큰(Personal Access Token) 발급</strong>
+                            <p>GitHub 우측 상단 프로필 클릭 → <strong>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</strong>으로 이동합니다.</p>
+                            <ul class="list-disc pl-4 mt-1 space-y-0.5">
+                                <li><strong>Repository access:</strong> Only select repositories (방금 만든 저장소 선택)</li>
+                                <li><strong>Permissions (Repository permissions):</strong> <code>Contents</code> 항목을 찾아 <strong>Read and write</strong>로 설정</li>
+                                <li>생성된 <code>github_pat_...</code> 토큰을 복사하여 위 입력칸에 붙여넣고 저장하세요.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong class="text-slate-900">3단계: 배지 클릭으로 언제든 수동 커밋!</strong>
+                            <p>체중을 기록한 뒤 상단의 <strong>수동 GitHub 동기화 배지</strong>를 클릭하면 저장소 내부의 <code>data/weight-records.json</code> 파일이 자동으로 생성·업데이트되어 PC와 스마트폰 어디서든 같은 데이터를 불러올 수 있습니다.</p>
+                        </div>
+                    </div>
+                </details>
             </div>
 
-            <div class="pt-2 flex justify-end">
-                <button onclick="closeCloudSyncModal()" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">닫기</button>
+            <div class="pt-1 flex justify-end">
+                <button onclick="closeGitHubSyncModal()" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">닫기</button>
             </div>
         </div>
     </div>
@@ -325,7 +393,7 @@
                     <div class="flex gap-2">
                         <button onclick="saveWeightRecord()" id="saveRecordBtn" class="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2">
                             <i data-lucide="check" class="w-4 h-4"></i>
-                            <span>기록 저장 (수동 동기화 대기)</span>
+                            <span>기록 저장 (브라우저 저장 후 GitHub 수동 커밋 대기)</span>
                         </button>
                         <button onclick="deleteCurrentDateRecord()" class="py-3 px-3.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 transition-all" title="해당 날짜 기록 초기화">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -374,7 +442,7 @@
                     <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                                <i data-lucide="Sparkles" class="w-5 h-5"></i>
+                                <i data-lucide="sparkles" class="w-5 h-5"></i>
                             </div>
                             <div>
                                 <div class="text-xs font-bold text-slate-800">금요일 오후 3시 정기 분석 안내</div>
@@ -433,7 +501,7 @@
                 </div>
             </div>
 
-            <!-- Charts & AI Insights Grid -->
+            <!-- Charts & Insights Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <!-- Chart (8 cols) -->
                 <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 card-shadow">
@@ -452,7 +520,7 @@
                 <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 card-shadow flex flex-col justify-between space-y-4">
                     <div>
                         <div class="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-3">
-                            <i data-lucide="Lightbulb" class="w-4 h-4"></i>
+                            <i data-lucide="lightbulb" class="w-4 h-4"></i>
                             <span>금요일 오후 3시 주간 분석 코멘트</span>
                         </div>
                         <div id="weeklyInsightList" class="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
@@ -558,7 +626,7 @@
                     <!-- Monthly Comprehensive Insight Box -->
                     <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-100 space-y-2">
                         <div class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                            <i data-lucide="file-Spreadsheet" class="w-4 h-4 text-indigo-600"></i>
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-indigo-600"></i>
                             <span>매달 마지막 주 금요일 월간 총평</span>
                         </div>
                         <p id="monthlySummaryComment" class="text-xs text-indigo-950/80 leading-relaxed">
@@ -579,130 +647,255 @@
         </div>
     </div>
 
-    <!-- Application & Firebase Logic -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- Application & GitHub Repository Storage Logic -->
+    <script>
+        // --- LOCAL STORAGE KEYS ---
+        const STORAGE_KEYS = {
+            RECORDS: 'fittrack_gh_weight_records_v1',
+            PENDING_CHANGES: 'fittrack_gh_pending_changes_v1',
+            PENDING_DELETIONS: 'fittrack_gh_pending_deletions_v1',
+            GH_CONFIG: 'fittrack_gh_repo_config_v1',
+            LAST_SYNC: 'fittrack_gh_last_sync_info_v1'
+        };
 
         // --- STATE MANAGEMENT ---
         const state = {
-            records: {}, // keyed by 'YYYY-MM-DD': { date, morning, lunch, note }
+            records: {}, // keyed by 'YYYY-MM-DD': { date, morning, lunch, note, updatedAt }
             selectedDate: '2026-10-28', // Defaults to Wednesday, Oct 28, 2026
             currentWeekMonday: '2026-10-26', // Monday of the currently viewed week
             selectedMonth: '2026-10',
             activeTab: 'log',
             simulationMode: 'real', // 'real' | 'friday3pm' | 'lastFriday3pm'
-            user: null,
-            db: null,
-            auth: null,
-            appId: typeof __app_id !== 'undefined' ? __app_id : 'weekday-weight-tracker-kr',
-            storageScope: 'private', // 'private' (users/{uid}/weightLogs) | 'shared' (public/data/weightLogs_{pin})
-            syncPin: 'myfit-2026',
-            cloudStatus: 'pending', // 'pending' | 'syncing' | 'synced' | 'offline'
-            pendingChanges: new Set(), // Dates modified locally awaiting manual sync
-            pendingDeletions: new Set(), // Dates deleted locally awaiting manual sync
-            lastSyncedTime: null
+            ghConfig: {
+                owner: '',
+                repo: '',
+                branch: 'main',
+                path: 'data/weight-records.json',
+                token: ''
+            },
+            syncStatus: 'unconfigured', // 'unconfigured' | 'pending' | 'syncing' | 'synced' | 'error'
+            pendingChanges: new Set(),
+            pendingDeletions: new Set(),
+            lastSyncedTime: null,
+            lastCommitSha: null
         };
 
         let weeklyChartInstance = null;
         let monthlyChartInstance = null;
 
-        // --- MANUAL CLOUD SYNC BADGE HELPER ---
+        // --- UTF-8 SAFE BASE64 HELPERS FOR GITHUB CONTENTS API ---
+        function encodeUtf8ToBase64(str) {
+            const bytes = new TextEncoder().encode(str);
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function decodeBase64ToUtf8(base64Str) {
+            const cleaned = base64Str.replace(/\s/g, '');
+            const binary = atob(cleaned);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new TextDecoder().decode(bytes);
+        }
+
+        function isGitHubConfigured() {
+            const c = state.ghConfig;
+            return Boolean(c && c.owner && c.repo && c.path && c.token);
+        }
+
+        // --- PRE-POPULATED REALISTIC SAMPLE DATA (Sept & Oct 2026 Mon-Fri) ---
+        function generateDefaultSampleData() {
+            return {
+                // September 2026 (Final week for comparison)
+                '2026-09-21': { date: '2026-09-21', morning: 73.6, lunch: 74.2, note: '9월 4주차 시작', updatedAt: 1758412800000 },
+                '2026-09-22': { date: '2026-09-22', morning: 73.5, lunch: 74.0, note: '점심 닭가슴살 샐러드', updatedAt: 1758499200000 },
+                '2026-09-23': { date: '2026-09-23', morning: 73.4, lunch: 73.9, note: '저녁 가볍게 섭취', updatedAt: 1758585600000 },
+                '2026-09-24': { date: '2026-09-24', morning: 73.3, lunch: 73.8, note: '아침 공복 유산소', updatedAt: 1758672000000 },
+                '2026-09-25': { date: '2026-09-25', morning: 73.2, lunch: 73.7, note: '9월 마지막 금요일 체크', updatedAt: 1758758400000 },
+
+                // October 2026 Week 1 (Oct 1 - Oct 2)
+                '2026-10-01': { date: '2026-10-01', morning: 73.1, lunch: 73.7, note: '10월 첫 기록 시작', updatedAt: 1759276800000 },
+                '2026-10-02': { date: '2026-10-02', morning: 73.0, lunch: 73.5, note: '가벼운 산책 40분', updatedAt: 1759363200000 },
+
+                // October 2026 Week 2 (Oct 5 - Oct 9)
+                '2026-10-05': { date: '2026-10-05', morning: 73.1, lunch: 73.6, note: '주말 이후 월요일 측정', updatedAt: 1759622400000 },
+                '2026-10-06': { date: '2026-10-06', morning: 72.9, lunch: 73.4, note: '수분 2L 섭취 완료', updatedAt: 1759708800000 },
+                '2026-10-07': { date: '2026-10-07', morning: 72.8, lunch: 73.3, note: '점심 일반식 반 공기', updatedAt: 1759795200000 },
+                '2026-10-08': { date: '2026-10-08', morning: 72.6, lunch: 73.2, note: '저녁 단식 유지', updatedAt: 1759881600000 },
+                '2026-10-09': { date: '2026-10-09', morning: 72.5, lunch: 73.0, note: '한글날 공복 조깅', updatedAt: 1759968000000 },
+
+                // October 2026 Week 3 (Oct 12 - Oct 16)
+                '2026-10-12': { date: '2026-10-12', morning: 72.7, lunch: 73.3, note: '주말 외식 후 소폭 상승', updatedAt: 1760227200000 },
+                '2026-10-13': { date: '2026-10-13', morning: 72.5, lunch: 73.0, note: '점심 포케 샐러드', updatedAt: 1760313600000 },
+                '2026-10-14': { date: '2026-10-14', morning: 72.3, lunch: 72.8, note: '컨디션 매우 좋음', updatedAt: 1760400000000 },
+                '2026-10-15': { date: '2026-10-15', morning: 72.2, lunch: 72.7, note: '근력운동 45분', updatedAt: 1760486400000 },
+                '2026-10-16': { date: '2026-10-16', morning: 72.1, lunch: 72.6, note: '3주차 금요일 목표 달성', updatedAt: 1760572800000 },
+
+                // October 2026 Week 4 (Oct 19 - Oct 23)
+                '2026-10-19': { date: '2026-10-19', morning: 72.3, lunch: 72.8, note: '월요일 아침 루틴', updatedAt: 1760832000000 },
+                '2026-10-20': { date: '2026-10-20', morning: 72.1, lunch: 72.6, note: '점심 구내식당 저염식', updatedAt: 1760918400000 },
+                '2026-10-21': { date: '2026-10-21', morning: 72.0, lunch: 72.5, note: '수요일 중간 점검', updatedAt: 1761004800000 },
+                '2026-10-22': { date: '2026-10-22', morning: 71.8, lunch: 72.3, note: '71kg대 안정권 진입', updatedAt: 1761091200000 },
+                '2026-10-23': { date: '2026-10-23', morning: 71.7, lunch: 72.2, note: '4주차 금요일 측정 완료', updatedAt: 1761177600000 },
+
+                // October 2026 Week 5 (Current Week: Oct 26 - Oct 30, Last Friday of Month!)
+                '2026-10-26': { date: '2026-10-26', morning: 71.9, lunch: 72.4, note: '마지막 주 월요일 시작', updatedAt: 1761436800000 },
+                '2026-10-27': { date: '2026-10-27', morning: 71.7, lunch: 72.2, note: '아침 스트레칭 및 유산소', updatedAt: 1761523200000 },
+                '2026-10-28': { date: '2026-10-28', morning: 71.6, lunch: 72.1, note: '수요일 오늘 아침·점심 완료', updatedAt: 1761609600000 },
+                '2026-10-29': { date: '2026-10-29', morning: 71.5, lunch: 72.0, note: '목요일 식단 관리 유지', updatedAt: 1761696000000 },
+                '2026-10-30': { date: '2026-10-30', morning: 71.4, lunch: 71.9, note: '10월 마지막 주 금요일!', updatedAt: 1761782400000 }
+            };
+        }
+
+        // --- PERSISTENCE IN LOCALSTORAGE ---
+        function saveStateToLocalStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(state.records));
+                localStorage.setItem(STORAGE_KEYS.PENDING_CHANGES, JSON.stringify(Array.from(state.pendingChanges)));
+                localStorage.setItem(STORAGE_KEYS.PENDING_DELETIONS, JSON.stringify(Array.from(state.pendingDeletions)));
+                if (state.lastSyncedTime || state.lastCommitSha) {
+                    localStorage.setItem(STORAGE_KEYS.LAST_SYNC, JSON.stringify({
+                        lastSyncedTime: state.lastSyncedTime,
+                        lastCommitSha: state.lastCommitSha
+                    }));
+                }
+            } catch (e) {
+                console.warn('localStorage 저장 오류:', e);
+            }
+        }
+
+        function loadStateFromLocalStorage() {
+            try {
+                const rawRecords = localStorage.getItem(STORAGE_KEYS.RECORDS);
+                if (rawRecords) {
+                    state.records = JSON.parse(rawRecords);
+                } else {
+                    state.records = generateDefaultSampleData();
+                    localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(state.records));
+                }
+
+                const rawChanges = localStorage.getItem(STORAGE_KEYS.PENDING_CHANGES);
+                if (rawChanges) state.pendingChanges = new Set(JSON.parse(rawChanges));
+
+                const rawDeletions = localStorage.getItem(STORAGE_KEYS.PENDING_DELETIONS);
+                if (rawDeletions) state.pendingDeletions = new Set(JSON.parse(rawDeletions));
+
+                const rawConfig = localStorage.getItem(STORAGE_KEYS.GH_CONFIG);
+                if (rawConfig) {
+                    const parsed = JSON.parse(rawConfig);
+                    state.ghConfig = {
+                        owner: parsed.owner || '',
+                        repo: parsed.repo || '',
+                        branch: parsed.branch || 'main',
+                        path: parsed.path || 'data/weight-records.json',
+                        token: parsed.token || ''
+                    };
+                }
+
+                const rawLastSync = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+                if (rawLastSync) {
+                    const parsedSync = JSON.parse(rawLastSync);
+                    state.lastSyncedTime = parsedSync.lastSyncedTime || null;
+                    state.lastCommitSha = parsedSync.lastCommitSha || null;
+                }
+            } catch (e) {
+                console.warn('localStorage 로드 오류:', e);
+                state.records = generateDefaultSampleData();
+            }
+        }
+
+        // --- MANUAL GITHUB SYNC BADGE UI ---
         function updateManualSyncBadgeUI(status, customText = null) {
-            state.cloudStatus = status;
+            state.syncStatus = status;
             const btn = document.getElementById('manualSyncBadgeBtn');
-            const textEl = document.getElementById('manualSyncBadgeText');
             const modalPending = document.getElementById('modalPendingBadge');
             const modalLastSynced = document.getElementById('modalLastSyncedText');
-            if (!btn || !textEl) return;
+            const profileLabel = document.getElementById('syncProfileLabel');
+            const fileLink = document.getElementById('githubFileDirectLink');
+            if (!btn) return;
 
             const pendingCount = state.pendingChanges.size + state.pendingDeletions.size;
+            const configured = isGitHubConfigured();
 
-            if (status === 'syncing') {
-                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-indigo-600 text-white flex items-center gap-1.5 border border-indigo-600 transition-all cursor-wait";
-                btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>${customText || '클라우드 수동 동기화 중...'}</span>`;
+            if (profileLabel) {
+                profileLabel.textContent = configured
+                    ? `${state.ghConfig.owner}/${state.ghConfig.repo}`
+                    : 'GitHub 저장소 설정';
+            }
+
+            if (fileLink) {
+                if (configured) {
+                    fileLink.href = `https://github.com/${encodeURIComponent(state.ghConfig.owner)}/${encodeURIComponent(state.ghConfig.repo)}/blob/${encodeURIComponent(state.ghConfig.branch || 'main')}/${state.ghConfig.path}`;
+                    fileLink.classList.remove('hidden');
+                } else {
+                    fileLink.classList.add('hidden');
+                }
+            }
+
+            if (!configured && status !== 'syncing') {
+                const msg = customText || (pendingCount > 0
+                    ? `로컬 변경 ${pendingCount}건 · 클릭하여 GitHub 저장소 연결`
+                    : 'GitHub 미연결 · 클릭하여 저장소 설정');
+                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-slate-100 hover:bg-indigo-50 text-slate-800 hover:text-indigo-700 flex items-center gap-1.5 border border-slate-300 transition-all cursor-pointer active:scale-95";
+                btn.innerHTML = `<i data-lucide="github" class="w-3.5 h-3.5 text-indigo-600"></i><span>${msg}</span>`;
                 if (modalPending) {
-                    modalPending.textContent = '동기화 진행 중...';
-                    modalPending.className = 'px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-bold text-[11px]';
+                    modalPending.textContent = '저장소 미연결';
+                    modalPending.className = 'px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300 font-bold text-[11px]';
+                }
+            } else if (status === 'syncing') {
+                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-indigo-600 text-white flex items-center gap-1.5 border border-indigo-600 transition-all cursor-wait";
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>${customText || 'GitHub 저장소에 커밋 중...'}</span>`;
+                if (modalPending) {
+                    modalPending.textContent = 'GitHub API 통신 중...';
+                    modalPending.className = 'px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 font-bold text-[11px]';
+                }
+            } else if (status === 'error') {
+                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-rose-50 hover:bg-rose-100 text-rose-700 flex items-center gap-1.5 border border-rose-300 transition-all cursor-pointer";
+                btn.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-600"></i><span>${customText || 'GitHub 커밋 오류 · 클릭하여 설정 확인'}</span>`;
+                if (modalPending) {
+                    modalPending.textContent = '동기화 오류 발생';
+                    modalPending.className = 'px-2.5 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/40 font-bold text-[11px]';
                 }
             } else if (status === 'pending' || pendingCount > 0) {
-                const label = customText || (pendingCount > 0 ? `미동기화 ${pendingCount}건 · 클릭하여 수동 동기화` : '수동 동기화 대기 · 클릭하여 동기화');
-                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-amber-50 hover:bg-amber-100 text-amber-800 flex items-center gap-1.5 border border-amber-300 transition-all cursor-pointer active:scale-95 shadow-xs";
-                btn.innerHTML = `<i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-amber-600"></i><span>${label}</span>`;
+                const label = customText || (pendingCount > 0
+                    ? `미동기화 ${pendingCount}건 · 클릭하여 GitHub에 수동 커밋`
+                    : `수동 동기화 대기 · 클릭하여 GitHub 동기화`);
+                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-amber-50 hover:bg-amber-100 text-amber-900 flex items-center gap-1.5 border border-amber-300 transition-all cursor-pointer active:scale-95 shadow-xs";
+                btn.innerHTML = `<i data-lucide="git-commit-horizontal" class="w-3.5 h-3.5 text-amber-600"></i><span>${label}</span>`;
                 if (modalPending) {
-                    modalPending.textContent = pendingCount > 0 ? `미동기화 변경사항 ${pendingCount}건` : '수동 동기화 가능';
-                    modalPending.className = 'px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[11px]';
+                    modalPending.textContent = pendingCount > 0 ? `미커밋 변경사항 ${pendingCount}건` : '수동 동기화 가능';
+                    modalPending.className = 'px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-bold text-[11px]';
                 }
-            } else if (status === 'synced') {
+            } else {
                 const timeLabel = state.lastSyncedTime ? ` (${state.lastSyncedTime})` : '';
-                const label = customText || `수동 동기화 완료${timeLabel} · 클릭 시 재동기화`;
+                const label = customText || `GitHub 동기화 완료${timeLabel} · 클릭 시 재동기화`;
                 btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 flex items-center gap-1.5 border border-emerald-300 transition-all cursor-pointer active:scale-95";
                 btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i><span>${label}</span>`;
                 if (modalPending) {
-                    modalPending.textContent = '동기화 완료됨';
-                    modalPending.className = 'px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]';
+                    modalPending.textContent = 'GitHub 커밋 완료됨';
+                    modalPending.className = 'px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 font-bold text-[11px]';
                 }
-            } else {
-                btn.className = "text-[11px] font-bold px-3 py-1 rounded-l-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 border border-slate-300 transition-all cursor-pointer";
-                btn.innerHTML = `<i data-lucide="cloud-off" class="w-3.5 h-3.5 text-slate-500"></i><span>${customText || '오프라인 · 클릭하여 연결 재시도'}</span>`;
             }
 
-            if (modalLastSynced && state.lastSyncedTime) {
-                modalLastSynced.textContent = `마지막 수동 동기화 시각: ${state.lastSyncedTime} (미동기화 변경: ${pendingCount}건)`;
+            if (modalLastSynced) {
+                const shaShort = state.lastCommitSha ? ` · SHA: ${state.lastCommitSha.slice(0, 7)}` : '';
+                modalLastSynced.textContent = state.lastSyncedTime
+                    ? `마지막 GitHub 동기화: ${state.lastSyncedTime}${shaShort} (미커밋: ${pendingCount}건)`
+                    : `아직 GitHub 커밋 이력이 없습니다 (미커밋 변경: ${pendingCount}건)`;
             }
 
             const statsEl = document.getElementById('modalSyncStatsText');
             if (statsEl) {
                 const count = Object.keys(state.records).length;
-                statsEl.textContent = `현재 총 ${count}건의 주중 기록 보유 중 (미동기화 ${pendingCount}건)`;
+                statsEl.textContent = `현재 총 ${count}건의 주중 기록 보관 중 (미커밋 변경 ${pendingCount}건)`;
             }
             lucide.createIcons();
-        }
-
-        // --- PRE-POPULATED REALISTIC SAMPLE DATA (Sept & Oct 2026 Mon-Fri) ---
-        function generateDefaultSampleData() {
-            const sample = {
-                // September 2026 (Final weeks for comparison)
-                '2026-09-21': { date: '2026-09-21', morning: 73.6, lunch: 74.2, note: '9월 4주차 시작' },
-                '2026-09-22': { date: '2026-09-22', morning: 73.5, lunch: 74.0, note: '점심 닭가슴살 샐러드' },
-                '2026-09-23': { date: '2026-09-23', morning: 73.4, lunch: 73.9, note: '저녁 가볍게 섭취' },
-                '2026-09-24': { date: '2026-09-24', morning: 73.3, lunch: 73.8, note: '아침 공복 유산소' },
-                '2026-09-25': { date: '2026-09-25', morning: 73.2, lunch: 73.7, note: '9월 마지막 금요일 체크' },
-
-                // October 2026 Week 1 (Oct 1 - Oct 2)
-                '2026-10-01': { date: '2026-10-01', morning: 73.1, lunch: 73.7, note: '10월 첫 기록 시작' },
-                '2026-10-02': { date: '2026-10-02', morning: 73.0, lunch: 73.5, note: '가벼운 산책 40분' },
-
-                // October 2026 Week 2 (Oct 5 - Oct 9)
-                '2026-10-05': { date: '2026-10-05', morning: 73.1, lunch: 73.6, note: '주말 이후 월요일 측정' },
-                '2026-10-06': { date: '2026-10-06', morning: 72.9, lunch: 73.4, note: '수분 2L 섭취 완료' },
-                '2026-10-07': { date: '2026-10-07', morning: 72.8, lunch: 73.3, note: '점심 일반식 반 공기' },
-                '2026-10-08': { date: '2026-10-08', morning: 72.6, lunch: 73.2, note: '저녁 단식 유지' },
-                '2026-10-09': { date: '2026-10-09', morning: 72.5, lunch: 73.0, note: '한글날 공복 조깅' },
-
-                // October 2026 Week 3 (Oct 12 - Oct 16)
-                '2026-10-12': { date: '2026-10-12', morning: 72.7, lunch: 73.3, note: '주말 외식 후 소폭 상승' },
-                '2026-10-13': { date: '2026-10-13', morning: 72.5, lunch: 73.0, note: '점심 포케 샐러드' },
-                '2026-10-14': { date: '2026-10-14', morning: 72.3, lunch: 72.8, note: '컨디션 매우 좋음' },
-                '2026-10-15': { date: '2026-10-15', morning: 72.2, lunch: 72.7, note: '근력운동 45분' },
-                '2026-10-16': { date: '2026-10-16', morning: 72.1, lunch: 72.6, note: '3주차 금요일 목표 달성' },
-
-                // October 2026 Week 4 (Oct 19 - Oct 23)
-                '2026-10-19': { date: '2026-10-19', morning: 72.3, lunch: 72.8, note: '월요일 아침 루틴' },
-                '2026-10-20': { date: '2026-10-20', morning: 72.1, lunch: 72.6, note: '점심 구내식당 저염식' },
-                '2026-10-21': { date: '2026-10-21', morning: 72.0, lunch: 72.5, note: '수요일 중간 점검' },
-                '2026-10-22': { date: '2026-10-22', morning: 71.8, lunch: 72.3, note: '71kg대 안정권 진입' },
-                '2026-10-23': { date: '2026-10-23', morning: 71.7, lunch: 72.2, note: '4주차 금요일 측정 완료' },
-
-                // October 2026 Week 5 (Current Week: Oct 26 - Oct 30, Last Friday of Month!)
-                '2026-10-26': { date: '2026-10-26', morning: 71.9, lunch: 72.4, note: '마지막 주 월요일 시작' },
-                '2026-10-27': { date: '2026-10-27', morning: 71.7, lunch: 72.2, note: '아침 스트레칭 및 유산소' },
-                '2026-10-28': { date: '2026-10-28', morning: 71.6, lunch: 72.1, note: '수요일 오늘 아침·점심 완료' },
-                '2026-10-29': { date: '2026-10-29', morning: 71.5, lunch: 72.0, note: '목요일 식단 관리 유지' },
-                '2026-10-30': { date: '2026-10-30', morning: 71.4, lunch: 71.9, note: '10월 마지막 주 금요일!' }
-            };
-            return sample;
         }
 
         // --- DATE HELPER FUNCTIONS ---
@@ -718,16 +911,15 @@
             return `${y}-${m}-${d}`;
         }
 
-        // Adjust any weekend date to Friday (or Monday) and return the Monday of that week
         function normalizeToWeekday(dateStr) {
             const d = parseLocalDate(dateStr);
-            const day = d.getDay(); // 0 Sun, 6 Sat
+            const day = d.getDay();
             let wasWeekend = false;
             if (day === 6) {
-                d.setDate(d.getDate() - 1); // Saturday -> Friday
+                d.setDate(d.getDate() - 1);
                 wasWeekend = true;
             } else if (day === 0) {
-                d.setDate(d.getDate() + 1); // Sunday -> Monday
+                d.setDate(d.getDate() + 1);
                 wasWeekend = true;
             }
             return { normalizedDate: formatDateStr(d), wasWeekend };
@@ -758,7 +950,6 @@
             return days;
         }
 
-        // Check if a given Friday date is the LAST Friday of its month
         function isLastFridayOfMonth(fridayDateObj) {
             if (fridayDateObj.getDay() !== 5) return false;
             const nextWeekSameDay = new Date(fridayDateObj);
@@ -768,7 +959,6 @@
 
         function getLastFridayOfMonthStr(yearMonthStr) {
             const [y, m] = yearMonthStr.split('-').map(Number);
-            // Last day of month
             const lastDay = new Date(y, m, 0);
             while (lastDay.getDay() !== 5) {
                 lastDay.setDate(lastDay.getDate() - 1);
@@ -798,7 +988,6 @@
                 };
             }
 
-            // Real clock check
             const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
             const dayIdx = now.getDay();
             const hours = now.getHours();
@@ -826,7 +1015,6 @@
             const weeklyBadge = document.getElementById('weeklyBadge');
             const monthlyBadge = document.getElementById('monthlyBadge');
 
-            // Update simulation mode button styles
             ['real', 'friday3pm', 'lastFriday3pm'].forEach(mode => {
                 const btn = document.getElementById(`simBtn-${mode}`);
                 if (!btn) return;
@@ -956,7 +1144,6 @@
                 quickContainer.appendChild(btn);
             });
 
-            // Populate Form Inputs for state.selectedDate
             const dateInput = document.getElementById('inputDate');
             dateInput.value = state.selectedDate;
 
@@ -971,7 +1158,6 @@
 
             updateLiveDiffPreview();
 
-            // Render Mon-Fri Table
             const tbody = document.getElementById('weeklyLogTableBody');
             tbody.innerHTML = '';
 
@@ -1073,7 +1259,6 @@
                 }
             });
 
-            // Compute Metrics
             const firstMorning = validMornings.length > 0 ? validMornings[0].val : null;
             const lastMorning = validMornings.length > 0 ? validMornings[validMornings.length - 1].val : null;
             const wkChange = (firstMorning !== null && lastMorning !== null) ? (lastMorning - firstMorning) : null;
@@ -1100,7 +1285,6 @@
 
             document.getElementById('wkMetricGapAvg').textContent = dAvg !== null ? `+${dAvg.toFixed(2)} kg` : '- kg';
 
-            // Generate Insights
             const insightContainer = document.getElementById('weeklyInsightList');
             const insights = [];
             if (wkChange !== null) {
@@ -1121,7 +1305,6 @@
             }
             insightContainer.innerHTML = insights.join('');
 
-            // Render Chart.js
             const ctx = document.getElementById('weeklyChartCanvas').getContext('2d');
             if (weeklyChartInstance) weeklyChartInstance.destroy();
 
@@ -1204,7 +1387,6 @@
             document.getElementById('monthlyReportTitle').textContent = `${yearNum}년 ${monthNum}월 월간 체중 변화 종합 분석`;
             document.getElementById('monthlyLastFridayInfo').textContent = `매달 마지막 주 금요일 정기 분석 기준일: ${lastFriStr} (금) 오후 3:00`;
 
-            // Collect all Mon-Fri dates in the selected month
             const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
             const monthWeekdays = [];
             for (let d = 1; d <= daysInMonth; d++) {
@@ -1215,7 +1397,6 @@
                 }
             }
 
-            // Group by week of month (Monday-based groups)
             const weekMap = new Map();
             monthWeekdays.forEach(dStr => {
                 const monStr = getMondayOfDate(dStr);
@@ -1240,7 +1421,6 @@
                 }
             });
 
-            // Monthly KPIs
             const netChange = allMornings.length >= 2
                 ? (allMornings[allMornings.length - 1].val - allMornings[0].val)
                 : null;
@@ -1270,7 +1450,6 @@
             const avgIntraday = allDiffs.length > 0 ? (allDiffs.reduce((a, b) => a + b, 0) / allDiffs.length) : null;
             document.getElementById('moMetricIntraday').textContent = avgIntraday !== null ? `+${avgIntraday.toFixed(2)} kg` : '- kg';
 
-            // Populate Week-by-Week Table & Chart Data
             const weekLabels = [];
             const weekMorningAvgs = [];
             const weekLunchAvgs = [];
@@ -1278,7 +1457,7 @@
             tbody.innerHTML = '';
 
             let weekIndex = 1;
-            weekMap.forEach((datesArr, monStr) => {
+            weekMap.forEach((datesArr) => {
                 const mList = [];
                 const lList = [];
                 datesArr.forEach(d => {
@@ -1315,7 +1494,6 @@
                 weekIndex++;
             });
 
-            // Monthly Summary Comment
             const summaryEl = document.getElementById('monthlySummaryComment');
             if (netChange !== null) {
                 summaryEl.innerHTML = `${yearNum}년 ${monthNum}월 한 달 동안 총 <strong>${loggedDaysCount}일(달성률 ${consistencyRate}%)</strong> 아침·점심 체중을 꾸준히 기록하셨습니다. 월초 대비 월말 체중은 <strong>${netChange > 0 ? '+' : ''}${netChange.toFixed(1)}kg</strong> 변화했으며, 주말 이후 월요일 아침에 일시적으로 오르더라도 금요일까지 다시 감량해 내는 우하향 패턴이 뚜렷하게 나타났습니다.`;
@@ -1323,7 +1501,6 @@
                 summaryEl.textContent = '선택한 월의 기록 데이터가 충분하지 않습니다. 체중을 기록하거나 샘플 데이터를 복원해 보세요.';
             }
 
-            // Render Monthly Chart
             const ctx = document.getElementById('monthlyWeeksChartCanvas').getContext('2d');
             if (monthlyChartInstance) monthlyChartInstance.destroy();
 
@@ -1452,147 +1629,196 @@
             }
         };
 
-        // Helper to get active Firestore Document Reference following strict path rules
-        function getRecordDocRef(dateStr) {
-            if (!state.db || !state.user) return null;
-            if (state.storageScope === 'shared') {
-                const safePin = (state.syncPin || 'default').replace(/[^a-zA-Z0-9_-]/g, '');
-                const colName = `weightLogs_${safePin}`;
-                return doc(state.db, 'artifacts', state.appId, 'public', 'data', colName, dateStr);
-            }
-            return doc(state.db, 'artifacts', state.appId, 'users', state.user.uid, 'weightLogs', dateStr);
+        // --- GITHUB REST API INTEGRATION (GET & PUT REPO FILE) ---
+        function buildGitHubApiUrl() {
+            const { owner, repo, path } = state.ghConfig;
+            const cleanPath = path.replace(/^\/+/, '');
+            const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/');
+            return `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`;
         }
 
-        function getRecordsCollectionRef() {
-            if (!state.db || !state.user) return null;
-            if (state.storageScope === 'shared') {
-                const safePin = (state.syncPin || 'default').replace(/[^a-zA-Z0-9_-]/g, '');
-                const colName = `weightLogs_${safePin}`;
-                return collection(state.db, 'artifacts', state.appId, 'public', 'data', colName);
+        async function fetchGitHubRepoFile() {
+            const url = `${buildGitHubApiUrl()}?ref=${encodeURIComponent(state.ghConfig.branch || 'main')}&t=${Date.now()}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${state.ghConfig.token}`,
+                    'X-GitHub-Api-Version': '2022-11-28'
+                }
+            });
+
+            if (res.status === 404) {
+                return { exists: false, sha: null, data: null };
             }
-            return collection(state.db, 'artifacts', state.appId, 'users', state.user.uid, 'weightLogs');
+
+            if (!res.ok) {
+                let errMsg = `HTTP ${res.status}`;
+                try {
+                    const errJson = await res.json();
+                    if (errJson && errJson.message) errMsg = errJson.message;
+                } catch (_) {}
+                throw new Error(`GitHub 조회 실패 (${errMsg})`);
+            }
+
+            const json = await res.json();
+            const decodedText = decodeBase64ToUtf8(json.content || '');
+            let parsedData = {};
+            try {
+                parsedData = JSON.parse(decodedText);
+            } catch (e) {
+                console.warn('저장소 JSON 파싱 경고, 빈 객체로 처리합니다:', e);
+            }
+            return {
+                exists: true,
+                sha: json.sha,
+                data: parsedData
+            };
         }
 
-        // Manual Two-Way Cloud Sync (Push pending local modifications & Pull latest cloud state)
-        window.triggerManualCloudSync = async function() {
-            if (!state.user || !state.db) {
-                showToast('클라우드 세션 연결을 확인 중입니다. 잠시 후 다시 눌러주세요.');
-                updateManualSyncBadgeUI('offline', '인증 확인 중 · 클릭하여 재시도');
+        async function commitGitHubRepoFile(recordsObj, existingSha = null, commitMsg = null) {
+            const url = buildGitHubApiUrl();
+            const nowStr = new Date().toLocaleString('ko-KR', { hour12: false });
+            const payloadObj = {
+                meta: {
+                    app: 'FitTrack Weekday Weight Tracker',
+                    updatedAt: new Date().toISOString(),
+                    recordCount: Object.keys(recordsObj).length
+                },
+                records: recordsObj
+            };
+
+            const jsonString = JSON.stringify(payloadObj, null, 2);
+            const contentBase64 = encodeUtf8ToBase64(jsonString);
+
+            const body = {
+                message: commitMsg || `chore(weight): 체중 기록 수동 동기화 (${nowStr})`,
+                content: contentBase64,
+                branch: state.ghConfig.branch || 'main'
+            };
+            if (existingSha) {
+                body.sha = existingSha;
+            }
+
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${state.ghConfig.token}`,
+                    'Content-Type': 'application/json',
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                let errMsg = `HTTP ${res.status}`;
+                try {
+                    const errJson = await res.json();
+                    if (errJson && errJson.message) errMsg = errJson.message;
+                } catch (_) {}
+                throw new Error(`GitHub 커밋 실패 (${errMsg})`);
+            }
+
+            return await res.json();
+        }
+
+        // Badge Click Handler
+        window.handleManualBadgeClick = function() {
+            if (!isGitHubConfigured()) {
+                window.openGitHubSyncModal();
+                showToast('먼저 GitHub 저장소 정보와 토큰(PAT)을 설정해 주세요.');
                 return;
             }
-
-            try {
-                updateManualSyncBadgeUI('syncing', '수동 동기화 진행 중...');
-
-                // 1. Push any pending deletions
-                for (const delDate of Array.from(state.pendingDeletions)) {
-                    const delRef = getRecordDocRef(delDate);
-                    if (delRef) await deleteDoc(delRef);
-                    state.pendingDeletions.delete(delDate);
-                }
-
-                // 2. Push any pending modified/created records
-                for (const modDate of Array.from(state.pendingChanges)) {
-                    const item = state.records[modDate];
-                    if (item) {
-                        const docRef = getRecordDocRef(modDate);
-                        if (docRef) await setDoc(docRef, item);
-                    }
-                    state.pendingChanges.delete(modDate);
-                }
-
-                // 3. Pull latest records from Firestore
-                const colRef = getRecordsCollectionRef();
-                if (colRef) {
-                    const snapshot = await getDocs(colRef);
-                    if (!snapshot.empty) {
-                        const cloudRecords = {};
-                        snapshot.forEach(docSnap => {
-                            const data = docSnap.data();
-                            if (data && data.date) {
-                                cloudRecords[data.date] = data;
-                            }
-                        });
-                        state.records = { ...state.records, ...cloudRecords };
-                    } else {
-                        // Cloud is empty: upload all current local records so cloud matches local
-                        const allEntries = Object.values(state.records);
-                        await Promise.all(allEntries.map(item => {
-                            const docRef = getRecordDocRef(item.date);
-                            return docRef ? setDoc(docRef, item) : Promise.resolve();
-                        }));
-                    }
-                }
-
-                const now = new Date();
-                state.lastSyncedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-                renderAll();
-                updateManualSyncBadgeUI('synced');
-                showToast(`수동 클라우드 동기화가 완료되었습니다! (${state.lastSyncedTime})`);
-            } catch (err) {
-                console.error('수동 동기화 오류:', err);
-                updateManualSyncBadgeUI('pending', '동기화 실패 · 클릭하여 재시도');
-                showToast('수동 동기화 중 오류가 발생했습니다. 다시 시도해 주세요.');
-            }
+            window.triggerManualGitHubSync('merge');
         };
 
-        // Force Push All Local Data to Cloud
-        window.manualPushAllToCloud = async function() {
-            if (!state.user || !state.db) {
-                showToast('클라우드 연결이 아직 준비되지 않았습니다.');
-                return;
-            }
-            try {
-                updateManualSyncBadgeUI('syncing', '전체 데이터 업로드 중...');
-                const entries = Object.values(state.records);
-                await Promise.all(entries.map(item => {
-                    const docRef = getRecordDocRef(item.date);
-                    return docRef ? setDoc(docRef, item) : Promise.resolve();
-                }));
-                state.pendingChanges.clear();
-                state.pendingDeletions.clear();
-                const now = new Date();
-                state.lastSyncedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-                updateManualSyncBadgeUI('synced');
-                showToast(`총 ${entries.length}건의 기록을 클라우드에 수동 업로드했습니다.`);
-            } catch (err) {
-                console.error('전체 업로드 오류:', err);
-                updateManualSyncBadgeUI('pending');
-            }
-        };
+        // Main Manual GitHub Sync Function ('merge' | 'push' | 'pull')
+        window.triggerManualGitHubSync = async function(mode = 'merge') {
+            syncModalInputsToStateIfPresent();
 
-        // Force Pull Latest Data from Cloud
-        window.manualPullFromCloud = async function() {
-            if (!state.user || !state.db) {
-                showToast('클라우드 연결이 아직 준비되지 않았습니다.');
+            if (!isGitHubConfigured()) {
+                window.openGitHubSyncModal();
+                showToast('GitHub 아이디, 저장소 이름, 토큰(PAT)을 모두 입력해 주세요.');
                 return;
             }
+
             try {
-                updateManualSyncBadgeUI('syncing', '클라우드 데이터 가져오는 중...');
-                const colRef = getRecordsCollectionRef();
-                if (!colRef) return;
-                const snapshot = await getDocs(colRef);
-                if (!snapshot.empty) {
-                    const loaded = {};
-                    snapshot.forEach(docSnap => {
-                        const data = docSnap.data();
-                        if (data && data.date) loaded[data.date] = data;
-                    });
-                    state.records = loaded;
+                const actionLabel = mode === 'pull'
+                    ? 'GitHub에서 데이터 불러오는 중...'
+                    : mode === 'push'
+                        ? 'GitHub 저장소에 전체 커밋 중...'
+                        : 'GitHub 저장소와 양방향 병합 커밋 중...';
+                updateManualSyncBadgeUI('syncing', actionLabel);
+
+                const remoteFile = await fetchGitHubRepoFile();
+                const remoteRecords = (remoteFile.exists && remoteFile.data)
+                    ? (remoteFile.data.records || remoteFile.data)
+                    : {};
+
+                if (mode === 'pull') {
+                    if (!remoteFile.exists) {
+                        updateManualSyncBadgeUI('pending', '저장소에 파일 없음 · 클릭하여 첫 커밋');
+                        showToast(`저장소에 ${state.ghConfig.path} 파일이 아직 없습니다. 먼저 '양방향 병합 동기화' 또는 '덮어쓰기'로 첫 커밋을 실행하세요.`);
+                        return;
+                    }
+                    state.records = { ...remoteRecords };
                     state.pendingChanges.clear();
                     state.pendingDeletions.clear();
                     const now = new Date();
                     state.lastSyncedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                    state.lastCommitSha = remoteFile.sha;
+                    saveStateToLocalStorage();
                     renderAll();
                     updateManualSyncBadgeUI('synced');
-                    showToast(`클라우드에서 총 ${Object.keys(loaded).length}건의 최신 기록을 불러왔습니다.`);
-                } else {
-                    updateManualSyncBadgeUI('pending', '클라우드 비어있음 · 클릭하여 업로드');
-                    showToast('클라우드에 저장된 기록이 없습니다. 먼저 업로드를 진행해 주세요.');
+                    showToast(`GitHub 저장소에서 총 ${Object.keys(state.records).length}건의 기록을 불러왔습니다.`);
+                    return;
                 }
+
+                let finalRecords = {};
+                if (mode === 'push' || !remoteFile.exists) {
+                    finalRecords = { ...state.records };
+                } else {
+                    finalRecords = { ...remoteRecords };
+                    for (const delDate of state.pendingDeletions) {
+                        delete finalRecords[delDate];
+                    }
+                    Object.keys(state.records).forEach(dateKey => {
+                        const localItem = state.records[dateKey];
+                        const remoteItem = finalRecords[dateKey];
+                        if (!remoteItem) {
+                            finalRecords[dateKey] = localItem;
+                        } else {
+                            const localTime = localItem.updatedAt || 0;
+                            const remoteTime = remoteItem.updatedAt || 0;
+                            if (localTime >= remoteTime || state.pendingChanges.has(dateKey)) {
+                                finalRecords[dateKey] = localItem;
+                            }
+                        }
+                    });
+                }
+
+                const commitResult = await commitGitHubRepoFile(
+                    finalRecords,
+                    remoteFile.exists ? remoteFile.sha : null
+                );
+
+                state.records = finalRecords;
+                state.pendingChanges.clear();
+                state.pendingDeletions.clear();
+
+                const now = new Date();
+                state.lastSyncedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                state.lastCommitSha = commitResult && commitResult.commit ? commitResult.commit.sha : remoteFile.sha;
+
+                saveStateToLocalStorage();
+                renderAll();
+                updateManualSyncBadgeUI('synced');
+                showToast(`GitHub [${state.ghConfig.owner}/${state.ghConfig.repo}] 커밋 완료! (${state.lastSyncedTime})`);
             } catch (err) {
-                console.error('클라우드 불러오기 오류:', err);
-                updateManualSyncBadgeUI('pending');
+                console.error('GitHub 수동 동기화 오류:', err);
+                updateManualSyncBadgeUI('error', 'GitHub 동기화 실패 · 클릭하여 확인');
+                showToast(err.message || 'GitHub 동기화 중 오류가 발생했습니다. 저장소 권한과 토큰을 확인하세요.');
             }
         };
 
@@ -1621,9 +1847,10 @@
             state.records[dateStr] = recordObj;
             state.pendingDeletions.delete(dateStr);
             state.pendingChanges.add(dateStr);
+            saveStateToLocalStorage();
             renderAll();
             updateManualSyncBadgeUI('pending');
-            showToast(`${dateStr} 기록 완료! 상단 배지를 누르면 클라우드에 수동 동기화됩니다.`);
+            showToast(`${dateStr} 기록 완료! 상단 배지를 누르면 GitHub 저장소에 커밋됩니다.`);
         };
 
         window.deleteCurrentDateRecord = function() {
@@ -1635,9 +1862,10 @@
             delete state.records[dateStr];
             state.pendingChanges.delete(dateStr);
             state.pendingDeletions.add(dateStr);
+            saveStateToLocalStorage();
             renderAll();
             updateManualSyncBadgeUI('pending');
-            showToast(`${dateStr} 기록이 삭제되었습니다. 상단 배지를 눌러 클라우드에 반영하세요.`);
+            showToast(`${dateStr} 기록이 삭제되었습니다. 상단 배지를 눌러 GitHub에 반영하세요.`);
         };
 
         window.resetAndLoadSampleData = function() {
@@ -1648,69 +1876,128 @@
             state.selectedMonth = '2026-10';
             Object.keys(sample).forEach(d => state.pendingChanges.add(d));
             state.pendingDeletions.clear();
+            saveStateToLocalStorage();
             renderAll();
             updateManualSyncBadgeUI('pending');
-            showToast('1개월 샘플 데이터가 로드되었습니다. 상단 배지를 클릭해 수동 동기화하세요.');
+            showToast('1개월 샘플 데이터가 복원되었습니다. 상단 배지를 눌러 GitHub에 커밋하세요.');
         };
 
-        // --- CLOUD SYNC MODAL & MULTI-DEVICE HANDLERS ---
-        window.openCloudSyncModal = function() {
-            document.getElementById('cloudSyncModal').classList.remove('hidden');
-            const uidText = state.user ? state.user.uid : '익명 세션 준비 중';
-            document.getElementById('modalUserIdText').textContent = uidText;
-            document.getElementById('syncPinInput').value = state.syncPin;
-            updateManualSyncBadgeUI(state.cloudStatus);
+        // --- GITHUB MODAL & LOCAL BACKUP HANDLERS ---
+        function populateModalInputsFromState() {
+            document.getElementById('ghOwnerInput').value = state.ghConfig.owner || '';
+            document.getElementById('ghRepoInput').value = state.ghConfig.repo || '';
+            document.getElementById('ghBranchInput').value = state.ghConfig.branch || 'main';
+            document.getElementById('ghPathInput').value = state.ghConfig.path || 'data/weight-records.json';
+            document.getElementById('ghTokenInput').value = state.ghConfig.token || '';
+        }
+
+        function syncModalInputsToStateIfPresent() {
+            const ownerEl = document.getElementById('ghOwnerInput');
+            if (!ownerEl) return;
+            const owner = ownerEl.value.trim();
+            const repo = document.getElementById('ghRepoInput').value.trim();
+            const branch = document.getElementById('ghBranchInput').value.trim() || 'main';
+            const path = document.getElementById('ghPathInput').value.trim() || 'data/weight-records.json';
+            const token = document.getElementById('ghTokenInput').value.trim();
+
+            if (owner || repo || token) {
+                state.ghConfig = { owner, repo, branch, path, token };
+                localStorage.setItem(STORAGE_KEYS.GH_CONFIG, JSON.stringify(state.ghConfig));
+            }
+        }
+
+        window.openGitHubSyncModal = function() {
+            populateModalInputsFromState();
+            document.getElementById('githubSyncModal').classList.remove('hidden');
+            updateManualSyncBadgeUI(state.syncStatus);
             lucide.createIcons();
         };
 
-        window.closeCloudSyncModal = function() {
-            document.getElementById('cloudSyncModal').classList.add('hidden');
+        window.closeGitHubSyncModal = function() {
+            document.getElementById('githubSyncModal').classList.add('hidden');
         };
 
-        window.copyUserId = function() {
-            if (!state.user) return;
-            const tempInput = document.createElement('input');
-            tempInput.value = state.user.uid;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            showToast('클라우드 사용자 ID가 클립보드에 복사되었습니다.');
-        };
-
-        window.switchStorageScope = function(scope) {
-            state.storageScope = scope;
-            const privBtn = document.getElementById('scopeBtn-private');
-            const sharBtn = document.getElementById('scopeBtn-shared');
-            const pinBox = document.getElementById('sharedPinConfigBox');
-            const label = document.getElementById('syncProfileLabel');
-
-            if (scope === 'shared') {
-                sharBtn.className = "p-3 rounded-xl border text-left transition-all border-indigo-600 bg-indigo-50/60";
-                privBtn.className = "p-3 rounded-xl border text-left transition-all border-slate-200 hover:bg-slate-50";
-                pinBox.classList.remove('hidden');
-                label.textContent = `동기화 코드: ${state.syncPin}`;
-                updateManualSyncBadgeUI('pending', `코드 [${state.syncPin}] · 클릭하여 동기화`);
+        window.toggleTokenVisibility = function() {
+            const input = document.getElementById('ghTokenInput');
+            const btn = document.getElementById('toggleTokenBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '토큰 숨기기';
             } else {
-                privBtn.className = "p-3 rounded-xl border text-left transition-all border-indigo-600 bg-indigo-50/60";
-                sharBtn.className = "p-3 rounded-xl border text-left transition-all border-slate-200 hover:bg-slate-50";
-                pinBox.classList.add('hidden');
-                label.textContent = '수동 동기화 설정';
-                updateManualSyncBadgeUI('pending', '개인 보관함 · 클릭하여 수동 동기화');
-                showToast('개인 전용 보관함 모드로 변경되었습니다. 배지를 눌러 수동 동기화하세요.');
+                input.type = 'password';
+                btn.textContent = '토큰 보기';
             }
         };
 
-        window.applySharedSyncPin = function() {
-            const rawPin = document.getElementById('syncPinInput').value.trim();
-            if (!rawPin || rawPin.length < 3) {
-                showToast('동기화 코드는 최소 3자 이상 입력해 주세요.');
+        window.saveGitHubConfigAndTest = async function() {
+            syncModalInputsToStateIfPresent();
+            if (!isGitHubConfigured()) {
+                showToast('GitHub 아이디, 저장소 이름, 파일 경로, 토큰을 모두 입력해 주세요.');
                 return;
             }
-            state.syncPin = rawPin;
-            document.getElementById('syncProfileLabel').textContent = `동기화 코드: ${state.syncPin}`;
-            updateManualSyncBadgeUI('pending', `코드 [${state.syncPin}] · 클릭하여 동기화`);
-            showToast(`동기화 코드 [${state.syncPin}]가 설정되었습니다. 수동 동기화 버튼을 눌러주세요.`);
+            updateManualSyncBadgeUI('pending');
+            showToast(`GitHub [${state.ghConfig.owner}/${state.ghConfig.repo}] 설정이 저장되었습니다. 동기화를 시작합니다...`);
+            await window.triggerManualGitHubSync('merge');
+        };
+
+        window.clearGitHubConfig = function() {
+            state.ghConfig = {
+                owner: '',
+                repo: '',
+                branch: 'main',
+                path: 'data/weight-records.json',
+                token: ''
+            };
+            localStorage.removeItem(STORAGE_KEYS.GH_CONFIG);
+            populateModalInputsFromState();
+            updateManualSyncBadgeUI('unconfigured');
+            showToast('GitHub 저장소 연동 설정이 초기화되었습니다.');
+        };
+
+        window.downloadJsonBackup = function() {
+            const payload = {
+                meta: {
+                    app: 'FitTrack Weekday Weight Tracker',
+                    exportedAt: new Date().toISOString(),
+                    recordCount: Object.keys(state.records).length
+                },
+                records: state.records
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `weight-records-${formatDateStr(new Date())}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('체중 기록 JSON 파일이 다운로드되었습니다.');
+        };
+
+        window.uploadJsonBackup = function(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    const incoming = parsed.records || parsed;
+                    if (typeof incoming !== 'object' || incoming === null) {
+                        throw new Error('올바른 JSON 형식이 아닙니다.');
+                    }
+                    state.records = { ...state.records, ...incoming };
+                    Object.keys(incoming).forEach(k => state.pendingChanges.add(k));
+                    saveStateToLocalStorage();
+                    renderAll();
+                    updateManualSyncBadgeUI('pending');
+                    showToast(`JSON 파일에서 ${Object.keys(incoming).length}건의 기록을 불러왔습니다.`);
+                } catch (err) {
+                    showToast('JSON 파일 읽기에 실패했습니다: ' + err.message);
+                }
+            };
+            reader.readAsText(file, 'utf-8');
+            event.target.value = '';
         };
 
         function showToast(msg) {
@@ -1719,15 +2006,25 @@
             toast.classList.remove('translate-y-20', 'opacity-0');
             setTimeout(() => {
                 toast.classList.add('translate-y-20', 'opacity-0');
-            }, 2600);
+            }, 2800);
         }
 
-        // --- INITIALIZATION & FIREBASE SETUP ---
-        async function initApp() {
-            // Load sample data immediately so charts and tables are ready right away
-            state.records = generateDefaultSampleData();
+        // --- INITIALIZATION ---
+        function initApp() {
+            loadStateFromLocalStorage();
+
+            // Automatically detect GitHub Pages URL (e.g., https://{owner}.github.io/{repo}/) if owner/repo not configured yet
+            if (!state.ghConfig.owner && window.location.hostname.endsWith('.github.io')) {
+                const hostParts = window.location.hostname.split('.');
+                const detectedOwner = hostParts[0];
+                const pathParts = window.location.pathname.split('/').filter(Boolean);
+                const detectedRepo = pathParts.length > 0 ? pathParts[0] : `${detectedOwner}.github.io`;
+                state.ghConfig.owner = detectedOwner;
+                state.ghConfig.repo = detectedRepo;
+            }
+
             renderAll();
-            updateManualSyncBadgeUI('pending', '수동 동기화 대기 · 클릭하여 동기화');
+            updateManualSyncBadgeUI(isGitHubConfigured() ? 'pending' : 'unconfigured');
 
             // Refresh clock every 30 seconds
             setInterval(() => {
@@ -1735,40 +2032,6 @@
                     renderScheduleBanner();
                 }
             }, 30000);
-
-            // Initialize Firebase with strict Auth-Before-Queries compliance
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                try {
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    const app = initializeApp(firebaseConfig);
-                    const auth = getAuth(app);
-                    const db = getFirestore(app);
-                    state.db = db;
-                    state.auth = auth;
-
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-
-                    onAuthStateChanged(auth, (user) => {
-                        state.user = user;
-                        if (user) {
-                            const uidEl = document.getElementById('modalUserIdText');
-                            if (uidEl) uidEl.textContent = user.uid;
-                            updateManualSyncBadgeUI('pending', '클라우드 준비됨 · 클릭하여 수동 동기화');
-                        } else {
-                            updateManualSyncBadgeUI('offline', '인증 세션 없음');
-                        }
-                    });
-                } catch (e) {
-                    console.warn('Firebase 초기화 생략 (로컬 모드 동작):', e);
-                    updateManualSyncBadgeUI('offline', '로컬 저장 모드');
-                }
-            } else {
-                updateManualSyncBadgeUI('offline', '로컬 데모 모드');
-            }
         }
 
         window.addEventListener('DOMContentLoaded', initApp);
